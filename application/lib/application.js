@@ -2,7 +2,7 @@
  * @Author: 小方块 
  * @Date: 2022-02-06 01:07:43 
  * @Last Modified by: 小方块
- * @Last Modified time: 2022-02-06 01:29:14
+ * @Last Modified time: 2022-02-06 02:18:57
  */
 const EventEmmiter = require('events')
 const http = require('http')
@@ -19,6 +19,7 @@ class Application extends EventEmmiter {
     this._context = Object.create(context)
     this._request = Object.create(request)
     this._response = Object.create(response)
+    this._middleWares = []
   }
   _createContext(req, res) {
     // 每次请求都产生一个全新的执行上下文
@@ -34,12 +35,23 @@ class Application extends EventEmmiter {
 
     return _context
   }
-  _handleRequest(req, res) {
+  async _handleRequest(req, res) {
     const _ctx = this._createContext(req, res)
-    this._cb(_ctx)
+    this._compose(_ctx).then(() => {
+      let body = res.body
+      res.end(body)
+    })
+  }
+  _compose(ctx) {
+    const dispatch = i => {
+      if (i === this._middleWares.length) return Promise.resolve()
+      let _middleWare = this._middleWares[i]
+      return Promise.resolve(_middleWare(ctx, () => dispatch(i + 1)))
+    }
+    return dispatch(0)
   }
   use(cb) {
-    this._cb = cb
+    this._middleWares.push(cb)
   }
   listen(...args) {
     const server = http.createServer(this._handleRequest.bind(this))
