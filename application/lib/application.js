@@ -2,10 +2,11 @@
  * @Author: 小方块 
  * @Date: 2022-02-06 01:07:43 
  * @Last Modified by: 小方块
- * @Last Modified time: 2022-02-06 02:18:57
+ * @Last Modified time: 2022-02-06 02:43:50
  */
 const EventEmmiter = require('events')
 const http = require('http')
+const Stream = require('stream')
 
 const context = require('./context')
 const request = require('./request')
@@ -38,8 +39,18 @@ class Application extends EventEmmiter {
   async _handleRequest(req, res) {
     const _ctx = this._createContext(req, res)
     this._compose(_ctx).then(() => {
-      let body = res.body
-      res.end(body)
+      let body = _ctx.body
+      console.log('body: ', body);
+      if (typeof body === 'string' || Buffer.isBuffer(body)) {
+        res.end(body)
+      } if (body instanceof Stream) {
+        console.log('====');
+        // 默认直接下载
+        res.setHeader('Content-Disposition', `attachment; filename=${encodeURIComponent('下载')}`)
+        body.pipe(res)
+      } else if (typeof body === 'object') {
+        res.end(JSON.stringify(body))
+      }
     })
   }
   _compose(ctx) {
